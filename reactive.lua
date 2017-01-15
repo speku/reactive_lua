@@ -1,58 +1,65 @@
-local function CreateObservable()
+do
+  local functionless_observables = {
+    call = true
+  }
 
-  local next_observable
-	local branches = {}
+  local function CreateObservable()
 
-	return function(...)
-		local next_type, potential_next, arg3 = ...
+    local next_observable
+  	local branches = {}
 
-		if not next_observable and type(potential_next) == "function" then
-			local newObservable = CreateObservable()
+  	return function(...)
+  		local next_type, potential_next, arg3 = ...
 
-      if next_type == "filter" then
-				next_observable = function(...)
-					if potential_next(...) then
-						return newObservable(...)
-					end
-				end
-			elseif next_type == "map" then
-				next_observable = function(...)
-					return newObservable(potential_next(...))
-				end
-			elseif next_type == "fold" then
-				local accumulator = arg3
-				next_observable = function(...)
-					accumulator = potential_next(...,accumulator)
-					return newObservable(accumulator)
-				end
-			elseif next_type == "subscribe" then
-				next_observable = potential_next
-			elseif next_type == "scan" then
-				local scanned_values = {}
-				local accumulator = arg3
-				next_observable = function(...)
-					accumulator = potential_next(...,accumulator)
-					return newObservable(scanned_values)
-				end
-			elseif next_type == "branch" then
-				table.insert(branches, newObservable)
-				return newObservable
-			elseif next_type == "call" then
-				next_observable = potential_next
-			elseif next_type == "merge" then
-				potential_next("call", newObservable)
-				next_observable = newObservable
-			end
+  		if not next_observable and (type(potential_next) == "function" or functionless_observables(next_type)) then
+  			local newObservable = CreateObservable()
 
-			return next_observable and next_observable
-		end
+        if next_type == "filter" then
+  				next_observable = function(...)
+  					if potential_next(...) then
+  						return newObservable(...)
+  					end
+  				end
+  			elseif next_type == "map" then
+  				next_observable = function(...)
+  					return newObservable(potential_next(...))
+  				end
+  			elseif next_type == "fold" then
+  				local accumulator = arg3
+  				next_observable = function(...)
+  					accumulator = potential_next(accumulator,...)
+  					return newObservable(accumulator,...)
+  				end
+  			elseif next_type == "subscribe" then
+  				next_observable = potential_next
+  			elseif next_type == "scan" then
+  				local scanned_values = {}
+  				local accumulator = arg3
+  				next_observable = function(...)
+  					accumulator = potential_next(accumulator,...)
+            table.insert(scanned_values,accumulator)
+  					return newObservable(accumulator,scanned_values,...)
+  				end
+  			elseif next_type == "branch" then
+  				table.insert(branches, newObservable)
+  				return newObservable
+  			elseif next_type == "call" then
+  				next_observable = potential_next
+  			elseif next_type == "merge" then
+  				potential_next("call", newObservable)
+  				next_observable = newObservable
+  			end
 
-		for _,observable in ipairs(branches) do
-			observable(...)
-		end
+  			return next_observable and next_observable
+  		end
 
-		return next_observable and next_observable(...)
-	end
+  		for _,observable in ipairs(branches) do
+  			observable(...)
+  		end
+
+  		return next_observable and next_observable(...)
+  	end
+  end
 end
 
 do
