@@ -1,6 +1,11 @@
 do
   local functionless_observables = {
-    call = true
+    branch = true,
+    log = true,
+    timestamp = true,
+    count = true,
+    throttle = true,
+    print = true
   }
 
   local function CreateObservable()
@@ -48,8 +53,45 @@ do
   			elseif next_type == "merge" then
   				potential_next("call", newObservable)
   				next_observable = newObservable
-  			end
-
+        elseif next_type == "log" then
+          local logged_values = {}
+          next_observable = function(...)
+            table.insert(logged_values, potential_next and potential_next(...) or {...})
+            return newObservable(logged_values,...)
+          end
+        elseif next_type == "count" then
+          local count = 0
+          next_observable = function(...)
+            count = count + 1
+            return newObservable(...)
+          end
+        elseif next_type == "print" then
+          next_observable = function(...)
+            print(potential_next and potential_next(...) or ...)
+            return newObservable(...)
+          end
+        elseif next_type == "effect" then
+          next_observable = function(...)
+            potential_next(...)
+            return newObservable(...)
+          end
+        elseif next_type == "timestamp" then
+          next_observable = function(...)
+            return newObservable(GetTime(),...)
+          end
+        elseif next_type == "throttle" then
+          local delay = arg3
+          local last_time = GetTime()
+          next_observable = function(...)
+            local current_time = GetTime()
+            if current_time - last_Time >= delay then
+              last_time = currentTime
+              return newObservable(...)
+            end
+          end
+        elseif next_type == "buffer" then
+          
+        end
   			return next_observable and next_observable
   		end
 
