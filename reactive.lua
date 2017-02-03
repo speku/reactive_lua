@@ -5,7 +5,8 @@ do
     timestamp = true,
     count = true,
     throttle = true,
-    print = true
+    print = true,
+    buffer = true
   }
 
   local function CreateObservable()
@@ -79,8 +80,8 @@ do
           next_observable = function(...)
             return newObservable(GetTime(),...)
           end
-        elseif next_type == "throttle" then
-          local delay = arg3
+        elseif next_type == "throttle" and type(potential_next) == "number" then
+          local delay = potential_next
           local last_time = GetTime()
           next_observable = function(...)
             local current_time = GetTime()
@@ -89,8 +90,22 @@ do
               return newObservable(...)
             end
           end
-        elseif next_type == "buffer" then
-          
+        elseif next_type == "buffer" and type(potential_next) == "number" then
+          local period = potential_next
+          local last_time = GetTime()
+          local buffered_values = {}
+          next_observable = function(...)
+            local current_time = GetTime()
+            if current_time - last_Time < period then
+              last_time = currentTime
+              table.insert(buffered_values, {...})
+            else
+              last_time = current_time
+              local total_buffered = buffered_values
+              buffered_values = {}
+              return newObservable(total_buffered,...)
+            end
+          end
         end
   			return next_observable and next_observable
   		end
